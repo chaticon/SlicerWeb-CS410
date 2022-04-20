@@ -6,10 +6,10 @@
 
     <script>
         alert("ws://" + location.host + "/websocket");
-        var ws = new WebSocket("ws://" + location.host + "/websocket");
+        var ws = new WebSocket("Attempting to connect to ws://" + location.host + "/websocket");
         ws.onopen = function() {
             ws.send("test");
-            alert("Sent Message");
+            alert("Connected");
         }
     </script>
 </head>

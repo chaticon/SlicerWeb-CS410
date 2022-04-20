@@ -613,6 +613,7 @@ class WebServerLogic:
             print("Logic: " + arg)
 
     def start(self):
+        from slicerserver import TestServer
         """Set up the server"""
         self.stop()
         self.port = SlicerHTTPServer.findFreePort(self.port)
@@ -622,8 +623,10 @@ class WebServerLogic:
         # e.g. certfile = '/Users/pieper/slicer/latest/SlicerWeb/localhost.pem'
         # openssl req -new -x509 -keyout localhost.pem -out localhost.pem -days 365 -nodes
         certfile = None
-        self.server = SlicerHTTPServer(docroot=self.docroot, server_address=("", self.port), logFile=self.logFile,
-                                       logMessage=self.logMessage, certfile=certfile)
+        """self.server = SlicerHTTPServer(docroot=self.docroot, server_address=("", self.port), logFile=self.logFile,
+                                       logMessage=self.logMessage, certfile=certfile)"""
+        self.server = TestServer(docroot=self.docroot, server_address=("", self.port), logFile=self.logFile,
+                                 logMessage=self.logMessage, certfile=certfile)
         self.server.start()
 
     def stop(self):
