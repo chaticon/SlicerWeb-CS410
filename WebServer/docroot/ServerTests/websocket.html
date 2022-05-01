@@ -3,13 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <title>WebSocket Test</title>
-
+    hi
     <script>
-        alert("ws://" + location.host + "/websocket");
-        var ws = new WebSocket("Attempting to connect to ws://" + location.host + "/websocket");
-        ws.onopen = function() {
-            ws.send("test");
-            alert("Connected");
+        var connected = false;
+
+        function connect(webSocket, typeStr) {
+            return function() {
+                connected = true;
+                alert("Connected via " + typeStr);
+                for(let i = 1; i < 8; i++) {
+                    webSocket.send("test" + i);
+                }
+            };
+        }
+
+        alert("Attempting to connect to wss://" + location.host + "/websocket");
+        var startTime = Date.now();
+        var wss = new WebSocket("wss://" + location.host + "/websocket");
+        wss.onopen = connect(wss, "WSS");
+
+        while(!connected && (Date.now() - startTime) < 1000); // give it a second to connect, then try non secure mode
+
+        if(!connected) {
+            alert("Connection failed via WSS, attempting to connect to ws://" + location.host + "/websocket");
+            var ws = new WebSocket("ws://" + location.host + "/websocket");
+            ws.onopen = connect(ws, "WS");
         }
     </script>
 </head>
