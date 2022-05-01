@@ -1,1 +1,1 @@
-from .testserver import *
+from .server import *
