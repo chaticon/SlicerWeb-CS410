@@ -1,6 +1,7 @@
 import pydicom
 from __main__ import slicer
 from slicer.ScriptedLoadableModule import *
+from tornado.web import RequestHandler
 
 try:
     import urlparse
@@ -12,18 +13,27 @@ except ImportError:
         urlparse = urllib.parse.urlparse
         parse_qs = urllib.parse.parse_qs
 
-class DICOMRequestHandler(object):
+from requesthandlers import header_builder
+
+
+class DICOMRequestHandler(RequestHandler):
     """
     Implements the mapping between DICOMweb endpoints
     and ctkDICOMDatabase api calls.
     """
-
-    def __init__(self, logMessage):
+    def initilize(self, logMessage):
         self.logMessage = logMessage
         self.logMessage('Starting DICOMRequestHandler')
         self.retrieveURLTag = pydicom.tag.Tag(0x00080190)
         self.numberOfStudyRelatedSeriesTag = pydicom.tag.Tag(0x00200206)
         self.numberOfStudyRelatedInstancesTag = pydicom.tag.Tag(0x00200208)
+
+    # TODO how do we test this?
+    def get(self):
+        print("Received DICOM request with path %s and body %s" % (self.request.path, self.request.body))
+        contentType, responseBody = self.handleDICOMRequest(urlparse.urlparse(self.request.uri), self.request.body)
+        header_builder(responseBody, contentType, self)
+        self.finish(responseBody)
 
     def handleDICOMRequest(self, parsedURL, requestBody):
         contentType = b'text/plain'

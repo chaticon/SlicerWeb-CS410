@@ -1,4 +1,6 @@
 import json
+import os
+import sys
 import time
 
 import numpy
@@ -17,11 +19,21 @@ except ImportError:
         urlparse = urllib.parse.urlparse
         parse_qs = urllib.parse.parse_qs
 
+from tornado.web import RequestHandler
+from requesthandlers import header_builder
 
-class SlicerRequestHandler(object):
 
-    def __init__(self, logMessage):
+class SlicerRequestHandler(RequestHandler):
+    def initialize(self, logMessage):
         self.logMessage = logMessage
+
+    # I figured out how to put the input to handleSlicerRequest together by looking at the original SlicerHTTPServer
+    def get(self):
+        print("Received Slicer request with path %s and body %s" % (self.request.path, self.request.body))
+        req = bytes("%s?%s" % (self.request.path, self.request.query), "utf-8")
+        contentType, responseBody = self.handleSlicerRequest(req[len(b"/slicer"):], self.request.body)
+        header_builder(responseBody, contentType, self)
+        self.finish(responseBody)
 
     def registerOneTimeBuffers(self, buffers):
         """ This allows data to be made avalable for subsequent access
@@ -46,9 +58,11 @@ class SlicerRequestHandler(object):
         writer.SetCompressionLevel(0)
         writer.Write()
         result = writer.GetResult()
-        pngArray = vtk.util.numpy_support.vtk_to_numpy(result)
-        pngData = pngArray.tobytes()
-
+        if result is not None:
+            pngArray = vtk.util.numpy_support.vtk_to_numpy(result)
+            pngData = pngArray.tobytes()
+        else:
+            pngData = None
         return pngData
 
     def handleSlicerRequest(self, request, requestBody):
@@ -62,7 +76,7 @@ class SlicerRequestHandler(object):
                     self.oneTimeBuffers = {}
             bufferFileName = request[1:].decode()  # strip first, make string
             if bufferFileName in self.oneTimeBuffers.keys():
-                contentType = b'application/octet-stream',
+                contentType = b'application/octet-stream'
                 responseBody = self.oneTimeBuffers[bufferFileName].tobytes()
                 del (self.oneTimeBuffers[bufferFileName])
             elif request.find(b'/repl') == 0:
@@ -74,13 +88,13 @@ class SlicerRequestHandler(object):
                 contentType = b'image/png'
             elif request.find(b'/slice') == 0:
                 responseBody = self.slice(request)
-                contentType = b'image/png',
+                contentType = b'image/png'
             elif request.find(b'/threeD') == 0:
                 responseBody = self.threeD(request)
-                contentType = b'image/png',
+                contentType = b'image/png'
             elif request.find(b'/mrml') == 0:
                 responseBody = self.mrml(request)
-                contentType = b'application/json',
+                contentType = b'application/json'
             elif request.find(b'/tracking') == 0:
                 responseBody = self.tracking(request)
             elif request.find(b'/eulers') == 0:
@@ -89,26 +103,26 @@ class SlicerRequestHandler(object):
                 responseBody = self.volumeSelection(request)
             elif request.find(b'/volumes') == 0:
                 responseBody = self.volumes(request, requestBody)
-                contentType = b'application/json',
+                contentType = b'application/json'
             elif request.find(b'/volume') == 0:
                 responseBody = self.volume(request, requestBody)
-                contentType = b'application/octet-stream',
+                contentType = b'application/octet-stream'
             elif request.find(b'/gridTransforms') == 0:
                 responseBody = self.gridTransforms(request, requestBody)
                 contentType = b'application/json',
             elif request.find(b'/gridTransform') == 0:
                 responseBody = self.gridTransform(request, requestBody)
                 print("responseBody", len(responseBody))
-                contentType = b'application/octet-stream',
+                contentType = b'application/octet-stream'
             elif request.find(b'/fiducials') == 0:
                 responseBody = self.fiducials(request, requestBody)
-                contentType = b'application/json',
+                contentType = b'application/json'
             elif request.find(b'/fiducial') == 0:
                 responseBody = self.fiducial(request, requestBody)
-                contentType = b'application/json',
+                contentType = b'application/json'
             elif request.find(b'/accessStudy') == 0:
                 responseBody = self.accessStudy(request, requestBody)
-                contentType = b'application/json',
+                contentType = b'application/json'
             else:
                 responseBody = b"unknown command \"" + request + b"\""
         except:
