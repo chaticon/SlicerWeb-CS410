@@ -78,7 +78,7 @@ class WebServerWidget(ScriptedLoadableModuleWidget):
         pass
 
     def exit(self):
-        pass
+        self.logic.stop()
 
     def setLogging(self):
         self.consoleMessages = self.logToConsole.checked
@@ -230,6 +230,11 @@ class WebServerWidget(ScriptedLoadableModuleWidget):
             self.log.repaint()
             # slicer.app.processEvents(qt.QEventLoop.ExcludeUserInputEvents)
 
+    def cleanup(self):
+        # TODO this never gets called when slicer is Xed out for some reason, so the server keeps running forever
+        self.logic.stop()
+        super().cleanup()
+
 
 #
 # SlicerHTTPServer
@@ -245,7 +250,7 @@ class SlicerHTTPServer(HTTPServer):
     # TODO: set header so client knows that image refreshes are needed (avoid
     # using the &time=xxx trick)
     def __init__(self, server_address=("", 8070), RequestHandlerClass=SlicerRequestHandler, docroot='.', logFile=None,
-                 logMessage=None, certfile=None):
+                 logMessage=None, certfile=None, keyfile=None):
         HTTPServer.__init__(self, server_address, RequestHandlerClass)
         self.docroot = docroot
         self.timeout = 1.
@@ -255,7 +260,8 @@ class SlicerHTTPServer(HTTPServer):
             self.socket = ssl.wrap_socket(self.socket,
                                           server_side=True,
                                           certfile=certfile,
-                                          ssl_version=ssl.PROTOCOL_TLS)
+                                          ssl_version=ssl.PROTOCOL_TLS,
+                                          keyfile=keyfile)
         self.socket.settimeout(5.)
         self.logFile = logFile
         if logMessage:
@@ -622,11 +628,14 @@ class WebServerLogic:
         # for testing webxr
         # e.g. certfile = '/Users/pieper/slicer/latest/SlicerWeb/localhost.pem'
         # openssl req -new -x509 -keyout localhost.pem -out localhost.pem -days 365 -nodes
-        certfile = None
-        """self.server = SlicerHTTPServer(docroot=self.docroot, server_address=("", self.port), logFile=self.logFile,
-                                       logMessage=self.logMessage, certfile=certfile)"""
+        # TODO maybe add a field to the widget where the user puts the path to their cert/key files, for now put them in the auth directory
+        authpath = os.path.dirname(slicer.modules.webserver.path.encode()) + b"/auth"
+        certfile = authpath + b"/cert.pem"
+        keyfile = authpath + b"/key.pem"
+        #self.server = SlicerHTTPServer(docroot=self.docroot, server_address=("", self.port), logFile=self.logFile,
+                                       #logMessage=self.logMessage, certfile=certfile, keyfile=keyfile)
         self.server = TestServer(docroot=self.docroot, server_address=("", self.port), logFile=self.logFile,
-                                 logMessage=self.logMessage, certfile=certfile)
+                                 logMessage=self.logMessage, certfile=certfile, keyfile=keyfile)
         self.server.start()
 
     def stop(self):
