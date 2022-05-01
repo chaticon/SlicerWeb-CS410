@@ -1,6 +1,6 @@
 #import os
 import socket
-#from __main__ import qt
+from __main__ import qt
 
 """
 try:
@@ -29,40 +29,49 @@ class TestServer:
 
     # TODO: set header so client knows that image refreshes are needed (avoid
     # using the &time=xxx trick)
-    def __init__(self, server_address=("", 8070), docroot='.', logFile=None,
-                 logMessage=None, certfile=None, app=Application([
-                (r"/websocket", SlicerWebSocketHandler),
-                (r"/(.*)", StaticFileHandler, {"path": "../docroot", "default_filename": "index.html"})])):
-        self.server_address = server_address
+    def __init__(self, server_address=("", 8070), docroot=b'.', logFile=None,
+                 logMessage=None, certfile=None, keyfile=None, app=None):
+        self.address, self.port = server_address
         self.docroot = docroot
         self.timeout = 1.
         self.logFile = logFile
         if logMessage:
             self.logMessage = logMessage
-        self.server = HTTPServer(app)
+
+        if app is None:
+            print("Serving Static Files from %s" % docroot.decode("utf-8"))
+            # the StaticFileHandler only takes the path arg as a string, so we have to decode the byte string
+            app = Application([(r"/websocket", SlicerWebSocketHandler),
+                               (r"/(.*)", StaticFileHandler, {"path": docroot.decode("utf-8"), "default_filename": "index.html"})])
+
+        if certfile is not None and keyfile is not None:
+            print("Running in Secure Mode")
+            self.server = HTTPServer(app, ssl_options={"certfile": certfile, "keyfile": keyfile})
+        else:
+            print("Running in Non Secure Mode")
+            self.server = HTTPServer(app)
+
+        self.running = True
 
     def start(self, app=None):
         if app:
             self.server = HTTPServer(app)
-        self.server.listen(self.server_address[1], self.server_address[0])
+        self.server.listen(self.port, self.address)
         self.server.start()
-        IOLoop.current().start()
+
+        # runs the two event loops on the same thread
+        while self.running:
+            # stop then start runs the loop once
+            IOLoop.current().stop()
+            IOLoop.current().start()
+            if qt.QCoreApplication.hasPendingEvents():
+                qt.QCoreApplication.processEvents()
+        else:
+            self.server.stop()
 
     def stop(self):
-        self.server.stop()
-
-    def handle_error(self, request, client_address):
-        """Handle an error gracefully.  May be overridden.
-
-        The default is to print a traceback and continue.
-
-        """
-        print('-' * 40)
-        print('Exception happened during processing of request', request)
-        print('From', client_address)
-        import traceback
-        traceback.print_exc()  # XXX But this goes to stderr!
-        print('-' * 40)
+        self.logMessage("Stopping Server")
+        self.running = False
 
     def logMessage(self, message):
         if self.logFile:
@@ -89,5 +98,5 @@ class TestServer:
 
 
 if __name__ == "__main__":
-    test = TestServer(server_address=("", 2016))
+    test = TestServer(server_address=("", 2016), docroot=b"../docroot")
     test.start()
