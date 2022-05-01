@@ -231,7 +231,7 @@ class WebServerWidget(ScriptedLoadableModuleWidget):
             # slicer.app.processEvents(qt.QEventLoop.ExcludeUserInputEvents)
 
     def cleanup(self):
-        # TODO this never gets called when slicer is Xed out for some reason, so the server keeps running forever
+        # TODO this never gets called when slicer is Xed out for some reason (even tho i thought that's the whole point of this method...), so the server keeps running forever
         self.logic.stop()
         super().cleanup()
 
@@ -619,7 +619,7 @@ class WebServerLogic:
             print("Logic: " + arg)
 
     def start(self):
-        from slicerserver import TestServer
+        from slicerserver import Server
         """Set up the server"""
         self.stop()
         self.port = SlicerHTTPServer.findFreePort(self.port)
@@ -634,7 +634,7 @@ class WebServerLogic:
         keyfile = authpath + b"/key.pem"
         #self.server = SlicerHTTPServer(docroot=self.docroot, server_address=("", self.port), logFile=self.logFile,
                                        #logMessage=self.logMessage, certfile=certfile, keyfile=keyfile)
-        self.server = TestServer(docroot=self.docroot, server_address=("", self.port), logFile=self.logFile,
+        self.server = Server(docroot=self.docroot, server_address=("", self.port), logFile=self.logFile,
                                  logMessage=self.logMessage, certfile=certfile, keyfile=keyfile)
         self.server.start()
 
