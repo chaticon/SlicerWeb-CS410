@@ -11,4 +11,4 @@ class SlicerWebSocketHandler(WebSocketHandler):
         super().on_close()
 
     def on_message(self, message: Union[str, bytes]) -> Optional[Awaitable[None]]:
-        pass
+        print("Received message %s" % message)
