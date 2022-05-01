@@ -18,18 +18,14 @@ from tornado.httpserver import HTTPServer
 from tornado.ioloop import IOLoop
 from tornado.web import Application
 from tornado.web import StaticFileHandler
-from requesthandlers import SlicerWebSocketHandler
+
+from requesthandlers import SlicerWebSocketHandler, DICOMRequestHandler, SlicerRequestHandler
 
 
-class TestServer:
-    """
-    This web server is configured to integrate with the Qt main loop
-    by listenting activity on the fileno of the servers socket.
-    """
-
+class Server:
     # TODO: set header so client knows that image refreshes are needed (avoid
     # using the &time=xxx trick)
-    def __init__(self, server_address=("", 8070), docroot=b'.', logFile=None,
+    def __init__(self, server_address=("", 2016), docroot=b'.', logFile=None,
                  logMessage=None, certfile=None, keyfile=None, app=None):
         self.address, self.port = server_address
         self.docroot = docroot
@@ -39,9 +35,10 @@ class TestServer:
             self.logMessage = logMessage
 
         if app is None:
-            print("Serving Static Files from %s" % docroot.decode("utf-8"))
             # the StaticFileHandler only takes the path arg as a string, so we have to decode the byte string
             app = Application([(r"/websocket", SlicerWebSocketHandler),
+                               (r"/slicer", SlicerRequestHandler, {"logMessage": logMessage}),
+                               (r"/dicom", DICOMRequestHandler, {"logMessage": logMessage}),
                                (r"/(.*)", StaticFileHandler, {"path": docroot.decode("utf-8"), "default_filename": "index.html"})])
 
         if certfile is not None and keyfile is not None:
@@ -64,7 +61,7 @@ class TestServer:
             # stop then start runs the loop once
             IOLoop.current().stop()
             IOLoop.current().start()
-            if qt.QCoreApplication.hasPendingEvents():
+            if __name__ != "__main__" and qt.QCoreApplication.hasPendingEvents():
                 qt.QCoreApplication.processEvents()
         else:
             self.server.stop()
@@ -95,8 +92,3 @@ class TestServer:
                 s.close()
                 portFree = True
         return port
-
-
-if __name__ == "__main__":
-    test = TestServer(server_address=("", 2016), docroot=b"../docroot")
-    test.start()
